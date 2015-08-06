@@ -32,6 +32,7 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 
+past_stats = {}
 
 def get_haproxy_report(url, user=None, password=None):
     auth = None
@@ -54,7 +55,7 @@ def report_to_statsd(stat_rows,
     for row in stat_rows:
         #path = '.'.join([namespace, row['pxname'], row['svname']])
         path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
-
+        past_stat_row = past_stats.get(path) or {}
         # Report each stat that we want in each row
         for stat in ['scur', 'smax', 'ereq', 'econ', 'rate', 'bin', 'bout', 'qtime', 'ctime', 'rtime', 'ttime']:
             val = row.get(stat) or 0
@@ -64,10 +65,12 @@ def report_to_statsd(stat_rows,
 
         for stat in ['hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
+            past_val = past_stat_row.get(stat) or 0
+            diff = str(int(val) - int(past_val))
             udp_sock.sendto(
-                '%s%s:%s|g' % (path, stat, val), (host, port))
+                '%s%s:%s|c' % (path, stat, diff), (host, port))
             stat_count += 1
-
+        past_stats[path] = row
     return stat_count
 
 
