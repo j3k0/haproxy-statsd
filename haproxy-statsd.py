@@ -57,16 +57,18 @@ def report_to_statsd(stat_rows,
         path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
         past_stat_row = past_stats.get(path) or {}
         # Report each stat that we want in each row
-        for stat in ['scur', 'smax', 'ereq', 'econ', 'rate', 'bin', 'bout', 'qtime', 'ctime', 'rtime', 'ttime']:
+        for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime']:
             val = row.get(stat) or 0
             udp_sock.sendto(
                 '%s%s:%s|g' % (path, stat, val), (host, port))
             stat_count += 1
 
-        for stat in ['hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
+        for stat in ['ereq', 'eresp', 'econ', 'bin', 'bout', 'hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
             past_val = past_stat_row.get(stat) or 0
             diff = str(int(val) - int(past_val))
+            if past_val == 0:
+                diff = 0
             udp_sock.sendto(
                 '%s%s:%s|c' % (path, stat, diff), (host, port))
             stat_count += 1
