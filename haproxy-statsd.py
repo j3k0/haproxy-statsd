@@ -72,6 +72,20 @@ def report_to_statsd(stat_rows,
             udp_sock.sendto(
                 '%s%s:%s|c' % (path, stat, diff), (host, port))
             stat_count += 1
+
+        stat = "status"
+        status = row.get("status")
+        if status == "UP" or status == "OPEN":
+            status_int = 1
+        elif status == "DOWN" or status == "CLOSED":
+            status_int = 0
+        elif status == "no check":
+            status_int = 2
+        else:
+            status_int = 3
+        udp_sock.sendto(
+            '%s%s:%s|c' % (path, stat, status_int), (host, port))
+
         past_stats[path] = row
     return stat_count
 
