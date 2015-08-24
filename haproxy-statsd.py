@@ -34,6 +34,8 @@ from requests.auth import HTTPBasicAuth
 
 past_stats = {}
 
+disabled_alerts = ["bk_apiproxy1", "bk_apiproxy2", "bk_not_found_404"]
+
 def get_haproxy_report(url, user=None, password=None):
     auth = None
     if user:
@@ -53,8 +55,11 @@ def report_to_statsd(stat_rows,
 
     # Report for each row
     for row in stat_rows:
+        service_class = ",class=external"
+        if row['pxname'] in disabled_alerts:
+            service_class = ',class=internal'
         #path = '.'.join([namespace, row['pxname'], row['svname']])
-        path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
+        path = namespace + ".[proxy=" + row['pxname'] + service_class + ",server=" + row['svname'] + "]"
         past_stat_row = past_stats.get(path) or {}
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime']:
