@@ -28,17 +28,11 @@ import socket
 import argparse
 import ConfigParser
 import os
-import yaml
 
 import requests
 from requests.auth import HTTPBasicAuth
 
 past_stats = {}
-
-disabled_alerts = ["bk_apiproxy1", "bk_apiproxy2", "bk_not_found_404"]
-
-roles_file = "/opt/haproxy-statsd/engineers.yml"
-ENGINEERS = yaml.load(open(roles_file, "r"))
 
 def get_haproxy_report(url, user=None, password=None):
     auth = None
@@ -59,18 +53,9 @@ def report_to_statsd(stat_rows,
 
     # Report for each row
     for row in stat_rows:
-        service_class = ",class=external"
-        if row['pxname'] in disabled_alerts:
-            service_class = ',class=internal'
-
-        service_role = ",role=ops"
-        for role, services in ENGINEERS['services'].iteritems():
-            for service in services:
-                if service in row['pxname']:
-                    service_role = ",role="+role
-        #path = '.'.join([namespace, row['pxname'], row['svname']])
-        path = namespace + ".[proxy=" + row['pxname'] + service_class + service_role + ",server=" + row['svname'] + "]"
+        path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
         past_stat_row = past_stats.get(path) or {}
+
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime']:
             val = row.get(stat) or 0
