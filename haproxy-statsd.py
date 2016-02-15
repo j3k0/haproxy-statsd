@@ -53,6 +53,8 @@ def report_to_statsd(stat_rows,
 
     # Report for each row
     for row in stat_rows:
+        if ((row['svname'] != 'BACKEND' or row['svname'] != 'FRONTEND') and row['status'] == 'DOWN') or row['bck'] == '1':
+            continue
         path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
         past_stat_row = past_stats.get(path) or {}
 
