@@ -34,16 +34,20 @@ from requests.auth import HTTPBasicAuth
 
 MAX_PACKET_SIZE = float(os.getenv('MAX_PACKET_SIZE', 1386))
 stats = ""
-def add_stat(udp_sock, hostport, stat):
+def add_stat(udp_sock, host, port, stat):
+    global stats
+    global MAX_PACKET_SIZE
     new_stats = stats + '\n' + stat
-    if len(new_stats) > MAX_PACKET_SIZE
-        flush_stats(udp_sock, hostport)
+    if len(new_stats) > MAX_PACKET_SIZE:
+        flush_stats(udp_sock, host, port)
         stats = stat
-    else
+    else:
         stats = new_stats
 
-def flush_stats(udp_sock, hostport):
-    udp_sock.sendto(stats, stats, hostport)
+def flush_stats(udp_sock, host, port):
+    global stats
+    udp_sock.sendto(stats, (host, port))
+    time.sleep(0.1) # Limits sending rate to reduce packet losses
     stats = ""
 
 def get_haproxy_report(url, user=None, password=None):
@@ -65,20 +69,20 @@ def report_to_statsd(stat_rows,
 
     # Report for each row
     for row in stat_rows:
-        if (row['svname'] != 'BACKEND' and row['svname'] != 'FRONTEND'):
-            continue
-        pxname = row['pxname'].replace('_', '.')
-        svname = row['svname'].lower()
+        pxname = row.get('pxname').replace('_', '.')
+        svname = row.get('svname').lower()
+        status = row.get("status")
+        #if (svname != 'backend' and svname != 'frontend' and status != 'UP' and status != 'OPEN'):
+        #    continue
         path = '%s.%s.%s' % (namespace, pxname, svname)
 
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime', 'ereq', 'eresp', 'econ', 'bin', 'bout', 'hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
-            add_stat(udp_sock, (host, port), '%s.%s:%s|g' % (path, stat, val))
+            add_stat(udp_sock, host, port, '%s.%s:%s|g' % (path, stat, val))
             stat_count += 1
 
         stat = "status"
-        status = row.get("status")
         if status == "UP" or status == "OPEN":
             status_int = 3
         elif status == "DOWN" or status == "CLOSED":
@@ -87,10 +91,9 @@ def report_to_statsd(stat_rows,
             status_int = 1
         else:
             status_int = 2
-        add_stat(udp_sock, (host, port), '%s.%s:%s|g' % (path, stat, status_int))
-        time.sleep(0.002)
+        add_stat(udp_sock, host, port, '%s.%s:%s|g' % (path, stat, status_int))
 
-    flush_stats(udp_sock, (host, port))
+    flush_stats(udp_sock, host, port)
     return stat_count
 
 
