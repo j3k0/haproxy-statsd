@@ -32,6 +32,19 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 
+MAX_PACKET_SIZE = float(os.getenv('MAX_PACKET_SIZE', 1386))
+stats = ""
+def add_stat(udp_sock, hostport, stat):
+    new_stats = stats + '\n' + stat
+    if len(new_stats) > MAX_PACKET_SIZE
+        flush_stats(udp_sock, hostport)
+        stats = stat
+    else
+        stats = new_stats
+
+def flush_stats(udp_sock, hostport):
+    udp_sock.sendto(stats, stats, hostport)
+    stats = ""
 
 def get_haproxy_report(url, user=None, password=None):
     auth = None
@@ -61,9 +74,7 @@ def report_to_statsd(stat_rows,
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime', 'ereq', 'eresp', 'econ', 'bin', 'bout', 'hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
-            udp_sock.sendto(
-                '%s.%s:%s|g' % (path, stat, val), (host, port))
-            time.sleep(0.002)
+            add_stat(udp_sock, (host, port), '%s.%s:%s|g' % (path, stat, val))
             stat_count += 1
 
         stat = "status"
@@ -76,10 +87,10 @@ def report_to_statsd(stat_rows,
             status_int = 1
         else:
             status_int = 2
-        udp_sock.sendto(
-            '%s.%s:%s|g' % (path, stat, status_int), (host, port))
+        add_stat(udp_sock, (host, port), '%s.%s:%s|g' % (path, stat, status_int))
         time.sleep(0.002)
 
+    flush_stats(udp_sock, (host, port))
     return stat_count
 
 
