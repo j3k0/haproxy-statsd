@@ -32,7 +32,6 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 
-past_stats = {}
 
 def get_haproxy_report(url, user=None, password=None):
     auth = None
@@ -55,8 +54,7 @@ def report_to_statsd(stat_rows,
     for row in stat_rows:
         if ((row['svname'] != 'BACKEND' or row['svname'] != 'FRONTEND') and row['status'] == 'DOWN') or row['bck'] == '1':
             continue
-        path = namespace + ".[proxy=" + row['pxname'] + ",server=" + row['svname'] + "]"
-        past_stat_row = past_stats.get(path) or {}
+        path = namespace + "." + row['pxname'] + "." + row['svname']
 
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime']:
@@ -67,28 +65,23 @@ def report_to_statsd(stat_rows,
 
         for stat in ['ereq', 'eresp', 'econ', 'bin', 'bout', 'hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
-            past_val = past_stat_row.get(stat) or 0
-            diff = str(int(val) - int(past_val))
-            if past_val == 0:
-                diff = 0
             udp_sock.sendto(
-                '%s%s:%s|c' % (path, stat, diff), (host, port))
+                '%s%s:%s|c' % (path, stat, val), (host, port))
             stat_count += 1
 
         stat = "status"
         status = row.get("status")
         if status == "UP" or status == "OPEN":
-            status_int = 1
+            status_int = 3
         elif status == "DOWN" or status == "CLOSED":
             status_int = 0
         elif status == "no check":
-            status_int = 2
+            status_int = 1
         else:
-            status_int = 3
+            status_int = 2
         udp_sock.sendto(
             '%s%s:%s|c' % (path, stat, status_int), (host, port))
 
-        past_stats[path] = row
     return stat_count
 
 
