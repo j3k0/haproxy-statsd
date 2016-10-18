@@ -63,6 +63,7 @@ def report_to_statsd(stat_rows,
             val = row.get(stat) or 0
             udp_sock.sendto(
                 '%s.%s:%s|g' % (path, stat, val), (host, port))
+            time.sleep(0.002)
             stat_count += 1
 
         stat = "status"
@@ -77,6 +78,7 @@ def report_to_statsd(stat_rows,
             status_int = 2
         udp_sock.sendto(
             '%s.%s:%s|g' % (path, stat, status_int), (host, port))
+        time.sleep(0.002)
 
     return stat_count
 
@@ -100,7 +102,7 @@ if __name__ == '__main__':
         'statsd_namespace': os.getenv('STATSD_NAMESPACE', 'haproxy.(HOSTNAME)'),
         'statsd_host': os.getenv('STATSD_HOST', '127.0.0.1'),
         'statsd_port': os.getenv('STATSD_PORT', 8125),
-        'interval': '5',
+        'interval': os.getenv('INTERVAL', '10')
     })
     config.add_section('haproxy-statsd')
     config.read(args.config)
