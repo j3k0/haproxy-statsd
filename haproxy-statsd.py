@@ -52,21 +52,23 @@ def report_to_statsd(stat_rows,
 
     # Report for each row
     for row in stat_rows:
-        if ((row['svname'] != 'BACKEND' or row['svname'] != 'FRONTEND') and row['status'] == 'DOWN') or row['bck'] == '1':
+        if (row['svname'] != 'BACKEND' and row['svname'] != 'FRONTEND'):
             continue
-        path = namespace + "." + row['pxname'] + "." + row['svname']
+        pxname = row['pxname'].replace('_', '.')
+        svname = row['svname'].lower()
+        path = '%s.%s.%s' % (namespace, pxname, svname)
 
         # Report each stat that we want in each row
         for stat in ['scur', 'qcur', 'qtime', 'ctime', 'rtime', 'ttime']:
             val = row.get(stat) or 0
             udp_sock.sendto(
-                '%s%s:%s|g' % (path, stat, val), (host, port))
+                '%s.%s:%s|g' % (path, stat, val), (host, port))
             stat_count += 1
 
         for stat in ['ereq', 'eresp', 'econ', 'bin', 'bout', 'hrsp_1xx', 'hrsp_2xx', 'hrsp_3xx', 'hrsp_4xx', 'hrsp_5xx']:
             val = row.get(stat) or 0
             udp_sock.sendto(
-                '%s%s:%s|c' % (path, stat, val), (host, port))
+                '%s.%s:%s|c' % (path, stat, val), (host, port))
             stat_count += 1
 
         stat = "status"
@@ -80,7 +82,7 @@ def report_to_statsd(stat_rows,
         else:
             status_int = 2
         udp_sock.sendto(
-            '%s%s:%s|c' % (path, stat, status_int), (host, port))
+            '%s.%s:%s|c' % (path, stat, status_int), (host, port))
 
     return stat_count
 
